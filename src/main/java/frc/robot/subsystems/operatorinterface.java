@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.automations.Vision;
+import frc.robot.test.ShooterTest;
 import edu.wpi.first.wpilibj.XboxController;
 
 public class operatorinterface extends SubsystemBase{
@@ -13,7 +14,7 @@ public class operatorinterface extends SubsystemBase{
     private shooter ballShooter = shooter.getInstance();
     private climb climber = climb.getInstance();
     private Telemetry telemetry = Telemetry.getInstance();
-   
+    private ShooterTest shooterTest = ShooterTest.getInstance();
 
     private operatorinterface(){
         controller1 = new XboxController(0);
@@ -33,6 +34,7 @@ public class operatorinterface extends SubsystemBase{
 
     private void updateShooter(){
         ballShooter.shooterInputManager(controller1.getRightBumperButtonPressed(), controller1.getRightTriggerAxis());
+        shooterTest.SetTestVelocity(controller1.getBButtonPressed());
     }
 
     private void updateTelemetry(){
