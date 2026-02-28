@@ -1,8 +1,12 @@
 package frc.robot.constants;
 
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+
+import static edu.wpi.first.units.Units.Meters;
+
 import java.util.Optional;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -30,4 +34,6 @@ public final class Constants {
   public static final int osilationTIme = 3;
   public static final int shootingAngle = 15;
   public static final int intakeAngle = 215;
+
+  public static final Distance hoodArmLength = Meters.of(0.33176);
 }

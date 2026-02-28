@@ -1,9 +1,5 @@
 package frc.robot.subsystems;
 
-import com.ctre.phoenix6.hardware.TalonFX;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Meters;
@@ -12,6 +8,10 @@ import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
+
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
 
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -82,6 +82,16 @@ public class intake extends SubsystemBase{
         .withControlMode(ControlMode.CLOSED_LOOP);
 
         pivotingSystem = new SparkWrapper(pivotMotor, DCMotor.getFalcon500(1), neoConfig);
+
+        pivotConfig = new ArmConfig(pivotingSystem)
+        .withLength(Meters.of(0.3366))
+        .withHardLimit(Degrees.of(-62), Degrees.of(62)) //IMPORTANT FIND ANGLE LIMITS
+        .withTelemetry("Pivot", TelemetryVerbosity.HIGH)
+        .withMass(Pounds.of(1))
+        .withStartingPosition(Degrees.of(0));
+
+        pivot = new Arm(pivotConfig);
+
         hopperSystem = new TalonFXWrapper(hopperMotor, DCMotor.getFalcon500(1), falconConfig);
         intakingSystem = new TalonFXWrapper(intakeMotor, DCMotor.getNEO(1), falconConfig);
     }
@@ -119,14 +129,10 @@ public class intake extends SubsystemBase{
     }
 
     //Pivot Code
-    ArmConfig pivotConfig = new ArmConfig(pivotingSystem)
-      .withLength(Meters.of(0.3366))
-      .withHardLimit(Degrees.of(-62), Degrees.of(62)) //IMPORTANT FIND ANGLE LIMITS
-      .withTelemetry("Pivot", TelemetryVerbosity.HIGH)
-      .withMass(Pounds.of(1))
-      .withStartingPosition(Degrees.of(0));
+    ArmConfig pivotConfig;
+
     
-    private final Arm pivot = new Arm(pivotConfig);
+    private Arm pivot;
 
     public void setAngle(Angle angle){
         pivot.setAngle(angle);
