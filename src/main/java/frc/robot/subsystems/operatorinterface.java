@@ -22,6 +22,7 @@ public class operatorinterface extends SubsystemBase{
 
     private void updateDrive(){
         drivetrain.driveInputHandler(controller1.getLeftX(), controller1.getLeftY(), controller1.getRightX(), controller1.getYButtonPressed(), controller1.getAButtonPressed());
+        drivetrain.updatePoseEstimator();
     }
 
     private void updateClimb(){
@@ -42,7 +43,7 @@ public class operatorinterface extends SubsystemBase{
     }
 
     private void updateVision(){
-        vision.updateVision(drivetrain.getRobotPose());
+        vision.updateSimVision(drivetrain.getRobotPose());
     }
     
     @Override

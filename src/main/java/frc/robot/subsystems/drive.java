@@ -45,7 +45,7 @@ public class drive extends SubsystemBase {
     
     //YAGSL
     private File directory = new File(Filesystem.getDeployDirectory(),"swerve2");
-    private SwerveDrive swerveDrive;
+    public SwerveDrive swerveDrive;
     private SwerveInputStream angularVel;
     private SwerveInputStream driveVel;
 
@@ -241,16 +241,9 @@ public class drive extends SubsystemBase {
         swerveDrive.resetOdometry(pose);
     }
 
-    public void updateSwervePoseEstimator() {
+    public void updatePoseEstimator(){
+        Vision.getInstance().updateVision();
         swerveDrive.updateOdometry();
-
-        var estPoseOption = Vision.getInstance().getVisionPose();
-        
-        if (estPoseOption.isPresent()) {
-            var estPose = estPoseOption.get();
-            swerveDrive.addVisionMeasurement(estPose.estimatedPose.toPose2d(), estPose.timestampSeconds);
-        }
-        
     }
 
     //Update advantage scope periodically

@@ -1,5 +1,7 @@
 package frc.robot.subsystems.automations;
 
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 //General imports
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -7,10 +9,19 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Robot;
+import frc.robot.constants.VisionConstants;
+import frc.robot.subsystems.drive;
+
+import java.util.List;
+
 
 import java.util.Optional;
 
@@ -49,6 +60,8 @@ public class Vision extends SubsystemBase{
     //Pose estimation
     private PoseStrategy strat;
     private final PhotonPoseEstimator poseEstimator;
+    private Matrix<N3, N1> currentStdDevs;
+
 
     //Camera parameters
     private SimCameraProperties cameraProp;
@@ -64,10 +77,11 @@ public class Vision extends SubsystemBase{
     //Camera objects
     private PhotonCameraSim cameraSim;
     private PhotonCamera camera;
-
+    
     //Target info
     int tagId;
 
+    //Constructor for all vision initializations
     private Vision(){
         //Field Setup
         field = AprilTagFields.kDefaultField.loadAprilTagLayoutField();
@@ -83,8 +97,8 @@ public class Vision extends SubsystemBase{
         camera = new PhotonCamera("cam1");
         cameraSim = new PhotonCameraSim(camera, cameraProp);
         cameraPos = new Transform3d(
-            new Translation3d(0.5, 0.0, 1), //Position of camera on the robot
-            new Rotation3d(0, 0, 0) //Rotate the camera POV
+            new Translation3d(VisionConstants.camPosX, VisionConstants.camPosY, VisionConstants.camPosZ), //Position of camera on the robot
+            new Rotation3d(0, VisionConstants.camRotPitch, 0) //Rotate the camera POV
         );
         cameraSim.enableRawStream(true);
         cameraSim.enableProcessedStream(true);
@@ -106,21 +120,84 @@ public class Vision extends SubsystemBase{
         as_estimatedCameraPose = NetworkTableInstance.getDefault().getStructTopic("estimatedPose", Pose2d.struct).publish();
     }
 
-    public int getTargetAprilTag(){
-        var result = camera.getLatestResult();
-        double areaMax = 0;
-        for(PhotonTrackedTarget target : result.getTargets()){
-            if(target.getArea() > areaMax){
-                tagId = target.fiducialId;
-                areaMax = target.getArea();
+    //Main vision code
+    public void updateVision() {
+        Optional<EstimatedRobotPose> visionEst = Optional.empty();
+        for(var result : camera.getAllUnreadResults()){
+            visionEst = poseEstimator.estimateCoprocMultiTagPose(result);
+            if(visionEst.isEmpty()){
+                visionEst = poseEstimator.estimateLowestAmbiguityPose(result);
             }
+            updateEstimationStdDevs(visionEst, result.getTargets());
+            
+            if (Robot.isSimulation()) {
+                visionEst.ifPresentOrElse(
+                        est ->
+                                getSimDebugField()
+                                        .getObject("VisionEstimation")
+                                        .setPose(est.estimatedPose.toPose2d()),
+                        () -> {
+                            getSimDebugField().getObject("VisionEstimation").setPoses();
+                        });
+            }
+
+            visionEst.ifPresent(
+                    est -> {
+                        // Change our trust in the measurement based on the tags we can see
+                        var estStdDevs = getEstimationStdDevs();
+                        drive.getInstance().swerveDrive.addVisionMeasurement(est.estimatedPose.toPose2d(), est.timestampSeconds, estStdDevs);
+                    });
         }
-        
-        return tagId;
     }
 
-    //Helper Methods
-    public void updateVision(Pose2d botPose){
+    private void updateEstimationStdDevs(Optional<EstimatedRobotPose> estimatedPose, List<PhotonTrackedTarget> targets) {
+        if(estimatedPose.isEmpty()){
+            //Set to default std (standard deviation) value
+            currentStdDevs = VisionConstants.kSingleTagStdDevs;
+        } else {
+            //Initialize calculation by assuming default std, tags and distance (standard deviation)
+            var estStdDevs = VisionConstants.kSingleTagStdDevs;
+            int numTags = 0;
+            double avgDistance = 0;
+
+            //Go through all tags and count them and their distances relative to the robot
+            for(var target : targets){
+                var tagPose = poseEstimator.getFieldTags().getTagPose(target.getFiducialId());
+                if (tagPose.isEmpty()) continue;
+                numTags++;
+                avgDistance += tagPose.get().toPose2d().getTranslation().getDistance(estimatedPose.get().estimatedPose.toPose2d().getTranslation());
+            }
+
+            if(numTags == 0){
+                // No visable tags. Default to singletag std devs
+                currentStdDevs = VisionConstants.kSingleTagStdDevs;
+            } else {
+                // One or more tags visible in this case
+                
+                //Distribute average distance between tags
+                avgDistance /= numTags;
+                // Decrease std if multiple targets are visible, because it's more accurate than single target
+                if(numTags > 1) estStdDevs = VisionConstants.kMultiTagStdDevs;
+                if(numTags == 1 && avgDistance > 4)
+                    //Std is set to the max if the average distance is more than 4m because the vision value will be the least accurate
+                    estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
+                else estStdDevs = estStdDevs.times(1 + (avgDistance * avgDistance / 30)); //Increase std linearly based on average distance less than 4m
+                currentStdDevs = estStdDevs;
+            }
+        }
+    }
+
+    public Matrix<N3, N1> getEstimationStdDevs() {
+        return currentStdDevs;
+    }
+
+    //Simulation Code
+    public Field2d getSimDebugField() {
+        if (!Robot.isSimulation()) return null;
+        return visionSim.getDebugField();
+    }
+
+    public void updateSimVision(Pose2d botPose){
         visionSim.update(botPose);
         Optional<Pose3d> camPose = visionSim.getCameraPose(cameraSim);
         as_cameraPose.set(camPose.get());
@@ -133,6 +210,8 @@ public class Vision extends SubsystemBase{
         visionSim.clearVisionTargets(); //Problematic line
     }
 
+    //Helper methods
+
     public Optional<EstimatedRobotPose> getVisionPose() {
         var result = camera.getLatestResult();
         Optional<EstimatedRobotPose> estPose = poseEstimator.estimateCoprocMultiTagPose(result);
@@ -143,6 +222,19 @@ public class Vision extends SubsystemBase{
         }
 
         return estPose;
+    }
+
+    public int getTargetAprilTag(){
+        var result = camera.getLatestResult();
+        double areaMax = 0;
+        for(PhotonTrackedTarget target : result.getTargets()){
+            if(target.getArea() > areaMax){
+                tagId = target.fiducialId;
+                areaMax = target.getArea();
+            }
+        }
+        
+        return tagId;
     }
 
     public static Vision getInstance(){
