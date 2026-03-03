@@ -1,8 +1,12 @@
 package frc.robot.constants;
 
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+
+import static edu.wpi.first.units.Units.Meters;
+
 import java.util.Optional;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -48,4 +52,6 @@ public final class Constants {
   public static final double hoodSysIdMaxVoltage = 10;
   public static final double hoodSysIdStep = 1;
   public static final double hoodSysIdDuration = 5;
+
+  public static final Distance hoodArmLength = Meters.of(0.33176);
 }

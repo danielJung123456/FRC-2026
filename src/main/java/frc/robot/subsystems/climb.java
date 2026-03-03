@@ -59,7 +59,8 @@ public class climb extends SubsystemBase{
         .withOpenLoopRampRate(Seconds.of(0.25))
         .withFeedforward(new SimpleMotorFeedforward(0.27937, 0.089836, 0.014557))
         .withSimFeedforward(new SimpleMotorFeedforward(0.27937, 0.089836, 0.014557))
-        .withControlMode(ControlMode.CLOSED_LOOP);
+        .withControlMode(ControlMode.CLOSED_LOOP)
+        .withMechanismCircumference(Meters.of(67)); // TODO: placeholder #
 
         climbingMotor = new SparkWrapper(climbMotor, DCMotor.getNeoVortex(1), vortexConfig);
 
@@ -96,7 +97,7 @@ public class climb extends SubsystemBase{
         if(dPad == 180) setArmPos(false);
         if(dPad == 270) {
             ballIntake.stateIntaking = false;
-            align.travelToTower();
+            align.travelToTower(true);
         }
     }
 
