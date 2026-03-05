@@ -80,7 +80,7 @@ public class shooter extends SubsystemBase{
 
   private autoAlign align = autoAlign.getInstance();
   private intake ballIntake = intake.getInstance();
-  private Telemetry telemetry = Telemetry.getInstance();
+  private Telemetry telemetry;
 
   private shooter() {
     //Motor inits
@@ -177,6 +177,7 @@ public class shooter extends SubsystemBase{
   }
 
   private double getVirtualTarget(Distance hubDistance){
+    telemetry = Telemetry.getInstance();
     ChassisSpeeds chassisVel = telemetry.currentVelocity;
     double xVel = chassisVel.vxMetersPerSecond;
     double yVel = chassisVel.vyMetersPerSecond;
